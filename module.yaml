@@ -1,0 +1,9 @@
+name: slide-deck-generator
+title: Генератор презентаций из плана занятия
+type: teacher-side
+status: mvp
+primary_interface: CLI
+inputs: Markdown с заголовками и разделителями
+outputs: Редактируемый PPTX, Markdown, JSON-метаданные, локальные xAPI-события, опциональный PDF
+integrations: Marp CLI
+storage: local
