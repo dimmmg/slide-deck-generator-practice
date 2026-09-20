@@ -28,3 +28,22 @@ class GeneratorTests(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as cm:
             app.main([])
         self.assertEqual(cm.exception.code, 2)
+
+    def test_markdown_content(self):
+        source = '# C#\n- [Источник](https://example.org)\n  - Вложенный тезис\n```cs\n# код\n---\n```\n---\n## Итог ##\nТекст'
+        slides = app.parse_plan(source)
+        self.assertEqual(len(slides), 2)
+        self.assertEqual(slides[0][0], 'C#')
+        self.assertEqual(slides[1][0], 'Итог')
+        for part in ['  - Вложенный тезис', '# код', '[Источник](https://example.org)']:
+            self.assertIn(part, app.marp_markdown(slides))
+
+    def test_markdown_only_cli(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan = Path(d)/'lesson.md'; out = Path(d)/'out'
+            plan.write_text('# Тема\n- Тезис', encoding='utf-8')
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = app.main(['--plan', str(plan), '--output', str(out), '--markdown-only'])
+            self.assertEqual(result, 0)
+            self.assertIn('# Тема', (out/'lesson.marp.md').read_text(encoding='utf-8'))
+            self.assertFalse((out/'lesson.pptx').exists())
