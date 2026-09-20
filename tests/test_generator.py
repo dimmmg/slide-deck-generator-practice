@@ -37,3 +37,13 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(slides[1][0], 'Итог')
         for part in ['  - Вложенный тезис', '# код', '[Источник](https://example.org)']:
             self.assertIn(part, app.marp_markdown(slides))
+
+    def test_markdown_only_cli(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan = Path(d)/'lesson.md'; out = Path(d)/'out'
+            plan.write_text('# Тема\n- Тезис', encoding='utf-8')
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = app.main(['--plan', str(plan), '--output', str(out), '--markdown-only'])
+            self.assertEqual(result, 0)
+            self.assertIn('# Тема', (out/'lesson.marp.md').read_text(encoding='utf-8'))
+            self.assertFalse((out/'lesson.pptx').exists())

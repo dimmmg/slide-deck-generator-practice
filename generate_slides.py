@@ -71,15 +71,33 @@ def marp_markdown(slides):
     return "---\nmarp: true\ntheme: default\npaginate: true\n---\n\n" + "\n\n---\n\n".join(pages) + "\n"
 
 
+def generate(plan, output, command, actor="student", lesson_id=None, pdf=False, markdown_only=False):
+    plan, output = Path(plan).resolve(), Path(output).resolve()
+    raw = plan.read_text(encoding="utf-8-sig")
+    slides = parse_plan(raw)
+    stem = plan.stem
+    draft = output / (stem + ".marp.md")
+    output.mkdir(parents=True, exist_ok=True)
+    draft.write_text(marp_markdown(slides), encoding="utf-8")
+    return draft, len(slides)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Markdown → Marp → редактируемый PPTX")
     parser.add_argument("plan", nargs="?", type=Path)
     parser.add_argument("--plan", dest="plan_option", type=Path)
     parser.add_argument("-o", "--output", type=Path, default=Path("out"))
+    parser.add_argument("--markdown-only", action="store_true", help="Создать только Marp Markdown")
     args = parser.parse_args(argv)
     if not (args.plan or args.plan_option):
         parser.error("Укажите входной файл")
-    print("Параметры приняты. Экспорт появится на следующем этапе.")
+    try:
+        command = []
+        result, count = generate(args.plan or args.plan_option, args.output, command)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f"Ошибка: {error}", file=sys.stderr)
+        return 1
+    print(f"Готово: {result} ({count} слайдов).")
     return 0
 
 
