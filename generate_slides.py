@@ -66,6 +66,11 @@ def parse_plan(source):
     return slides
 
 
+def marp_markdown(slides):
+    pages = ["# " + title + "\n\n" + body for title, body in slides]
+    return "---\nmarp: true\ntheme: default\npaginate: true\n---\n\n" + "\n\n---\n\n".join(pages) + "\n"
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Markdown → Marp → редактируемый PPTX")
     parser.add_argument("plan", nargs="?", type=Path)
