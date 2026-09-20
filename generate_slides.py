@@ -17,6 +17,19 @@ ROOT = Path(__file__).resolve().parent
 BASE = "urn:slide-deck-generator:"
 
 
+def parse_plan(source):
+    slides, title, body = [], None, []
+    for line in source.splitlines():
+        heading = re.match(r"^#{1,6}\s+(.+)$", line)
+        if heading or line.strip() == "---":
+            if title or body:
+                slides.append((title or "Продолжение", "\n".join(body).strip()))
+            title, body = (heading[1] if heading else None), []
+        else:
+            body.append(line)
+    if title or body:
+        slides.append((title or "Продолжение", "\n".join(body).strip()))
+    return slides
 
 
 def main(argv=None):
