@@ -47,3 +47,25 @@ class GeneratorTests(unittest.TestCase):
             self.assertEqual(result, 0)
             self.assertIn('# Тема', (out/'lesson.marp.md').read_text(encoding='utf-8'))
             self.assertFalse((out/'lesson.pptx').exists())
+
+    def test_editable_pptx(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan=Path(d)/'lesson.md';plan.write_text('# Тема\nТекст',encoding='utf-8')
+            with patch('generate_slides.subprocess.run', side_effect=fake_marp) as run:
+                pptx,count=app.generate(plan,Path(d)/'out',['node','marp.js'])
+            self.assertTrue(pptx.exists())
+            self.assertEqual(count,1)
+            self.assertIn('--pptx-editable',run.call_args.args[0])
+
+    def test_windows_entry(self):
+        with patch('generate_slides.Path.is_file', return_value=True):
+            command=app.marp_command()
+        self.assertEqual(command[0],'node')
+        self.assertTrue(command[1].endswith('marp-cli.js'))
+
+    def test_path_with_spaces(self):
+        with tempfile.TemporaryDirectory(prefix='slides space ') as d:
+            plan=Path(d)/'мой урок.md';plan.write_text('# Тема\nТекст',encoding='utf-8')
+            with patch('generate_slides.subprocess.run',side_effect=fake_marp) as run:
+                app.generate(plan,Path(d)/'output dir',['node','marp.js'])
+            self.assertIn(str(Path(d)/'output dir'/'мой урок.marp.md'),run.call_args.args[0])

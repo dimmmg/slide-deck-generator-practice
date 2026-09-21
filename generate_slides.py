@@ -79,7 +79,36 @@ def generate(plan, output, command, actor="student", lesson_id=None, pdf=False, 
     draft = output / (stem + ".marp.md")
     output.mkdir(parents=True, exist_ok=True)
     draft.write_text(marp_markdown(slides), encoding="utf-8")
-    return draft, len(slides)
+    if markdown_only:
+        return draft, len(slides)
+    pptx = output / (stem + ".pptx")
+    regenerated = pptx.exists()
+    exported = export_files(draft, output, command, pdf)
+    return pptx, len(slides)
+
+
+def marp_command(override=None):
+    # Invoke the JS entry point directly: works on Windows without .cmd/shell quoting.
+    entry = ROOT / "node_modules/@marp-team/marp-cli/marp-cli.js"
+    if override:
+        path = Path(override).resolve()
+        if path.suffix == ".js":
+            return ["node", str(path)]
+        return [str(path)]
+    if entry.is_file():
+        return ["node", str(entry)]
+    binary = shutil.which("marp")
+    if binary and not binary.lower().endswith((".cmd", ".bat")):
+        return [binary]
+    raise ValueError("Marp CLI не найден. Выполните npm ci в каталоге проекта.")
+
+
+def export_files(draft, output, command, pdf=False):
+    stem = draft.name.removesuffix(".marp.md")
+    target = output / (stem + ".pptx")
+    subprocess.run(command + ["--pptx", "--pptx-editable", str(draft), "-o", str(target)], check=True)
+    artifacts = {"pptx": target}
+    return artifacts
 
 
 def main(argv=None):
@@ -88,12 +117,13 @@ def main(argv=None):
     parser.add_argument("--plan", dest="plan_option", type=Path)
     parser.add_argument("-o", "--output", type=Path, default=Path("out"))
     parser.add_argument("--markdown-only", action="store_true", help="Создать только Marp Markdown")
+    parser.add_argument("--marp", help="Путь к Marp или marp-cli.js")
     args = parser.parse_args(argv)
     if not (args.plan or args.plan_option):
         parser.error("Укажите входной файл")
     try:
-        command = []
-        result, count = generate(args.plan or args.plan_option, args.output, command)
+        command = [] if args.markdown_only else marp_command(args.marp)
+        result, count = generate(args.plan or args.plan_option, args.output, command, markdown_only=args.markdown_only)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return 1
