@@ -98,6 +98,14 @@ def marp_command(override=None):
     raise ValueError("Marp CLI не найден. Выполните npm ci в каталоге проекта.")
 
 
+def export_files(draft, output, command, pdf=False):
+    stem = draft.name.removesuffix(".marp.md")
+    target = output / (stem + ".pptx")
+    subprocess.run(command + ["--pptx", "--pptx-editable", str(draft), "-o", str(target)], check=True)
+    artifacts = {"pptx": target}
+    return artifacts
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Markdown → Marp → редактируемый PPTX")
     parser.add_argument("plan", nargs="?", type=Path)
