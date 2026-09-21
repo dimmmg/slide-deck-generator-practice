@@ -82,6 +82,22 @@ def generate(plan, output, command, actor="student", lesson_id=None, pdf=False, 
     return draft, len(slides)
 
 
+def marp_command(override=None):
+    # Invoke the JS entry point directly: works on Windows without .cmd/shell quoting.
+    entry = ROOT / "node_modules/@marp-team/marp-cli/marp-cli.js"
+    if override:
+        path = Path(override).resolve()
+        if path.suffix == ".js":
+            return ["node", str(path)]
+        return [str(path)]
+    if entry.is_file():
+        return ["node", str(entry)]
+    binary = shutil.which("marp")
+    if binary and not binary.lower().endswith((".cmd", ".bat")):
+        return [binary]
+    raise ValueError("Marp CLI не найден. Выполните npm ci в каталоге проекта.")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Markdown → Marp → редактируемый PPTX")
     parser.add_argument("plan", nargs="?", type=Path)
