@@ -6,3 +6,12 @@
 PPTX через Marp, опционально PDF, локальные метаданные и xAPI JSONL.
 Интерфейс — Python CLI. Сложные макеты, веб-интерфейс и удалённый LRS не входят в MVP.
 Ранние учебные версии вводят эти возможности постепенно; состав этапа указан в STEP.md снаружи проекта.
+
+## Быстрый запуск
+
+```powershell
+npm.cmd ci
+python generate_slides.py --plan examples/lesson.md --output out
+```
+
+[Установка в Windows](docs/windows.md).
