@@ -47,3 +47,12 @@ class GeneratorTests(unittest.TestCase):
             self.assertEqual(result, 0)
             self.assertIn('# Тема', (out/'lesson.marp.md').read_text(encoding='utf-8'))
             self.assertFalse((out/'lesson.pptx').exists())
+
+    def test_editable_pptx(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan=Path(d)/'lesson.md';plan.write_text('# Тема\nТекст',encoding='utf-8')
+            with patch('generate_slides.subprocess.run', side_effect=fake_marp) as run:
+                pptx,count=app.generate(plan,Path(d)/'out',['node','marp.js'])
+            self.assertTrue(pptx.exists())
+            self.assertEqual(count,1)
+            self.assertIn('--pptx-editable',run.call_args.args[0])
