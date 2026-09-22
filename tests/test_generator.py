@@ -91,3 +91,11 @@ class GeneratorTests(unittest.TestCase):
     def test_missing_input_file(self):
         with tempfile.TemporaryDirectory() as d, contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(app.main(['--plan',str(Path(d)/'missing.md'),'--markdown-only']),1)
+
+    def test_invalid_pptx_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            draft=Path(d)/'lesson.marp.md';draft.write_text('# Тема',encoding='utf-8')
+            def bad(command,check):
+                Path(command[-1]).write_text('invalid',encoding='utf-8')
+            with patch('generate_slides.subprocess.run',side_effect=bad),self.assertRaises(ValueError):
+                app.export_files(draft,Path(d),['marp'])

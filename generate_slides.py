@@ -107,10 +107,14 @@ def export_files(draft, output, command, pdf=False):
     stem = draft.name.removesuffix(".marp.md")
     target = output / (stem + ".pptx")
     subprocess.run(command + ["--pptx", "--pptx-editable", str(draft), "-o", str(target)], check=True)
+    if not target.is_file() or not zipfile.is_zipfile(target):
+        raise ValueError("Marp не создал корректный PPTX")
     artifacts = {"pptx": target}
     if pdf:
         target = output / (stem + ".pdf")
         subprocess.run(command + ["--pdf", str(draft), "-o", str(target)], check=True)
+        if not target.is_file() or not target.read_bytes().startswith(b"%PDF"):
+            raise ValueError("Marp не создал корректный PDF")
         artifacts["pdf"] = target
     return artifacts
 
