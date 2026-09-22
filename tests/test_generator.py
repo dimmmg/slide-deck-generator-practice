@@ -77,3 +77,17 @@ class GeneratorTests(unittest.TestCase):
                 app.generate(plan,Path(d)/'out',['marp'],pdf=True)
             self.assertEqual(run.call_count,2)
             self.assertTrue((Path(d)/'out/lesson.pdf').read_bytes().startswith(b'%PDF'))
+
+    def test_failed_converter_cli(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan=Path(d)/'lesson.md';plan.write_text('# Урок\nТекст',encoding='utf-8')
+            stdout=io.StringIO();stderr=io.StringIO()
+            with patch('generate_slides.marp_command',return_value=['marp']), patch('generate_slides.subprocess.run',side_effect=subprocess.CalledProcessError(1,'marp')), contextlib.redirect_stdout(stdout),contextlib.redirect_stderr(stderr):
+                result=app.main(['--plan',str(plan),'--output',str(Path(d)/'out')])
+            self.assertEqual(result,1)
+            self.assertNotIn('Готово',stdout.getvalue())
+            self.assertIn('Ошибка',stderr.getvalue())
+
+    def test_missing_input_file(self):
+        with tempfile.TemporaryDirectory() as d, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(app.main(['--plan',str(Path(d)/'missing.md'),'--markdown-only']),1)
