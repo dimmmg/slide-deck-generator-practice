@@ -107,7 +107,15 @@ def export_files(draft, output, command, pdf=False):
     stem = draft.name.removesuffix(".marp.md")
     target = output / (stem + ".pptx")
     subprocess.run(command + ["--pptx", "--pptx-editable", str(draft), "-o", str(target)], check=True)
+    if not target.is_file() or not zipfile.is_zipfile(target):
+        raise ValueError("Marp не создал корректный PPTX")
     artifacts = {"pptx": target}
+    if pdf:
+        target = output / (stem + ".pdf")
+        subprocess.run(command + ["--pdf", str(draft), "-o", str(target)], check=True)
+        if not target.is_file() or not target.read_bytes().startswith(b"%PDF"):
+            raise ValueError("Marp не создал корректный PDF")
+        artifacts["pdf"] = target
     return artifacts
 
 
@@ -118,12 +126,13 @@ def main(argv=None):
     parser.add_argument("-o", "--output", type=Path, default=Path("out"))
     parser.add_argument("--markdown-only", action="store_true", help="Создать только Marp Markdown")
     parser.add_argument("--marp", help="Путь к Marp или marp-cli.js")
+    parser.add_argument("--pdf", action="store_true", help="Дополнительно создать PDF")
     args = parser.parse_args(argv)
     if not (args.plan or args.plan_option):
         parser.error("Укажите входной файл")
     try:
         command = [] if args.markdown_only else marp_command(args.marp)
-        result, count = generate(args.plan or args.plan_option, args.output, command, markdown_only=args.markdown_only)
+        result, count = generate(args.plan or args.plan_option, args.output, command, pdf=args.pdf, markdown_only=args.markdown_only)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return 1
