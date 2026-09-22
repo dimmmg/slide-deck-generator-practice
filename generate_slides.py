@@ -108,6 +108,10 @@ def export_files(draft, output, command, pdf=False):
     target = output / (stem + ".pptx")
     subprocess.run(command + ["--pptx", "--pptx-editable", str(draft), "-o", str(target)], check=True)
     artifacts = {"pptx": target}
+    if pdf:
+        target = output / (stem + ".pdf")
+        subprocess.run(command + ["--pdf", str(draft), "-o", str(target)], check=True)
+        artifacts["pdf"] = target
     return artifacts
 
 
