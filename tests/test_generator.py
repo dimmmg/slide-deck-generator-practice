@@ -69,3 +69,11 @@ class GeneratorTests(unittest.TestCase):
             with patch('generate_slides.subprocess.run',side_effect=fake_marp) as run:
                 app.generate(plan,Path(d)/'output dir',['node','marp.js'])
             self.assertIn(str(Path(d)/'output dir'/'мой урок.marp.md'),run.call_args.args[0])
+
+    def test_pdf_export(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan=Path(d)/'lesson.md';plan.write_text('# Урок\nТекст',encoding='utf-8')
+            with patch('generate_slides.subprocess.run',side_effect=fake_marp) as run:
+                app.generate(plan,Path(d)/'out',['marp'],pdf=True)
+            self.assertEqual(run.call_count,2)
+            self.assertTrue((Path(d)/'out/lesson.pdf').read_bytes().startswith(b'%PDF'))
