@@ -109,3 +109,15 @@ class GeneratorTests(unittest.TestCase):
         self.assertIn('TODO: добавить тезисы',app.marp_markdown(app.parse_plan('# Тема')))
         self.assertIn('TODO: добавить или проверить формулу',app.marp_markdown(app.parse_plan('# Формулы\nТеорема')))
         self.assertNotIn('TODO: проверить, нужен ли пример',app.marp_markdown(app.parse_plan('# Тема\nПример: 1')))
+
+    def test_conflicting_input_arguments(self):
+        with contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit) as cm:
+            app.main(['one.md','--plan','two.md','--markdown-only'])
+        self.assertEqual(cm.exception.code,2)
+
+    def test_source_is_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan=Path(d)/'lesson.md';source='# Тема\nТезис';plan.write_text(source,encoding='utf-8')
+            __import__('os').link(plan,Path(d)/'lesson.marp.md')
+            with self.assertRaises(ValueError):app.generate(plan,Path(d),[],markdown_only=True)
+            self.assertEqual(plan.read_text(encoding='utf-8'),source)
