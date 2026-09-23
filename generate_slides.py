@@ -67,7 +67,19 @@ def parse_plan(source):
 
 
 def marp_markdown(slides):
-    pages = ["# " + title + "\n\n" + body for title, body in slides]
+    pages = []
+    for title, body in slides:
+        notes = []
+        if not body:
+            notes.append("TODO: добавить тезисы и пример.")
+        elif not re.search(r"```|~~~|\bпример\b", body, re.I):
+            notes.append("TODO: проверить, нужен ли пример.")
+        if re.search(r"формул|диаграмм|иллюстрац|рисунк|изображен", title + " " + body, re.I) and not re.search(r"!\[.*?\]\(.*?\)", body):
+            notes.append("TODO: добавить или проверить формулу/иллюстрацию.")
+        page = "# " + title + "\n\n" + body
+        if notes:
+            page += "\n\n" + "\n".join("> " + note for note in notes)
+        pages.append(page.rstrip())
     return "---\nmarp: true\ntheme: default\npaginate: true\n---\n\n" + "\n\n---\n\n".join(pages) + "\n"
 
 
@@ -77,6 +89,8 @@ def generate(plan, output, command, actor="student", lesson_id=None, pdf=False, 
     slides = parse_plan(raw)
     stem = plan.stem
     draft = output / (stem + ".marp.md")
+    if draft.resolve() == plan or (draft.exists() and draft.samefile(plan)):
+        raise ValueError("Выходной черновик совпадает с входным файлом. Выберите другую папку.")
     output.mkdir(parents=True, exist_ok=True)
     draft.write_text(marp_markdown(slides), encoding="utf-8")
     if markdown_only:
@@ -128,8 +142,8 @@ def main(argv=None):
     parser.add_argument("--marp", help="Путь к Marp или marp-cli.js")
     parser.add_argument("--pdf", action="store_true", help="Дополнительно создать PDF")
     args = parser.parse_args(argv)
-    if not (args.plan or args.plan_option):
-        parser.error("Укажите входной файл")
+    if bool(args.plan) == bool(args.plan_option):
+        parser.error("Укажите один входной файл: позиционно или через --plan")
     try:
         command = [] if args.markdown_only else marp_command(args.marp)
         result, count = generate(args.plan or args.plan_option, args.output, command, pdf=args.pdf, markdown_only=args.markdown_only)
