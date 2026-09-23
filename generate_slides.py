@@ -67,7 +67,19 @@ def parse_plan(source):
 
 
 def marp_markdown(slides):
-    pages = ["# " + title + "\n\n" + body for title, body in slides]
+    pages = []
+    for title, body in slides:
+        notes = []
+        if not body:
+            notes.append("TODO: добавить тезисы и пример.")
+        elif not re.search(r"```|~~~|\bпример\b", body, re.I):
+            notes.append("TODO: проверить, нужен ли пример.")
+        if re.search(r"формул|диаграмм|иллюстрац|рисунк|изображен", title + " " + body, re.I) and not re.search(r"!\[.*?\]\(.*?\)", body):
+            notes.append("TODO: добавить или проверить формулу/иллюстрацию.")
+        page = "# " + title + "\n\n" + body
+        if notes:
+            page += "\n\n" + "\n".join("> " + note for note in notes)
+        pages.append(page.rstrip())
     return "---\nmarp: true\ntheme: default\npaginate: true\n---\n\n" + "\n\n---\n\n".join(pages) + "\n"
 
 
