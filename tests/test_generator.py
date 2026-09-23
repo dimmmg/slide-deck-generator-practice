@@ -99,3 +99,13 @@ class GeneratorTests(unittest.TestCase):
                 Path(command[-1]).write_text('invalid',encoding='utf-8')
             with patch('generate_slides.subprocess.run',side_effect=bad),self.assertRaises(ValueError):
                 app.export_files(draft,Path(d),['marp'])
+
+    def test_invalid_plans(self):
+        for source in ['', '---\n','Просто текст','# Тема\n```py\nx=1','---\nmarp: true\n---\n# Тема']:
+            with self.subTest(source=source),self.assertRaises(ValueError):
+                app.parse_plan(source)
+
+    def test_todo_rules(self):
+        self.assertIn('TODO: добавить тезисы',app.marp_markdown(app.parse_plan('# Тема')))
+        self.assertIn('TODO: добавить или проверить формулу',app.marp_markdown(app.parse_plan('# Формулы\nТеорема')))
+        self.assertNotIn('TODO: проверить, нужен ли пример',app.marp_markdown(app.parse_plan('# Тема\nПример: 1')))
