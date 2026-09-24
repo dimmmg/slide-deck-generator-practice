@@ -98,6 +98,13 @@ def generate(plan, output, command, actor="student", lesson_id=None, pdf=False, 
     pptx = output / (stem + ".pptx")
     regenerated = pptx.exists()
     exported = export_files(draft, output, command, pdf)
+    artifacts = {"plan": plan.as_uri(), "markdown": draft.as_uri()}
+    artifacts.update({key: value.as_uri() for key, value in exported.items()})
+    paths = {"plan": plan, "markdown": draft, **exported}
+    action = "regenerated" if regenerated else "generated"
+    metadata = make_metadata(lesson_id or plan.as_uri(), slides, paths, action)
+    write_json(output / (stem + ".metadata.json"), metadata)
+    append_event(output / "events.xapi.jsonl", metadata, actor)
     return pptx, len(slides)
 
 
@@ -133,6 +140,29 @@ def export_files(draft, output, command, pdf=False):
     return artifacts
 
 
+def write_json(path, obj):
+    path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def make_metadata(lesson_id, slides, paths, action):
+    timestamp = datetime.now(timezone.utc).isoformat()
+    hashes = {key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in paths.items()}
+    return {"lesson_id": lesson_id, "title": slides[0][0], "slide_count": len(slides),
+            "timestamp": timestamp, "action": action, "plan_sha256": hashes["plan"],
+            "sha256": hashes, "artifacts": {key: path.as_uri() for key, path in paths.items()}}
+
+
+def append_event(path, metadata, actor):
+    action = metadata["action"]
+    event = {"id": str(uuid.uuid4()), "version": "1.0.3", "timestamp": metadata["timestamp"],
+             "actor": {"objectType": "Agent", "account": {"homePage": BASE + "local", "name": actor}},
+             "verb": {"id": BASE + action, "display": {"ru": "пересоздал презентацию" if action == "regenerated" else "сгенерировал презентацию"}},
+             "object": {"objectType": "Activity", "id": metadata["lesson_id"], "definition": {"name": {"ru": metadata["title"]}}},
+             "context": {"extensions": {BASE + "artifacts": metadata["artifacts"], BASE + "plan-sha256": metadata["plan_sha256"]}}}
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Markdown → Marp → редактируемый PPTX")
     parser.add_argument("plan", nargs="?", type=Path)
@@ -141,12 +171,17 @@ def main(argv=None):
     parser.add_argument("--markdown-only", action="store_true", help="Создать только Marp Markdown")
     parser.add_argument("--marp", help="Путь к Marp или marp-cli.js")
     parser.add_argument("--pdf", action="store_true", help="Дополнительно создать PDF")
+    parser.add_argument("--actor", default="student")
+    parser.add_argument("--lesson-id", help="URI урока")
+    parser.add_argument("--mock-lrs", action="store_true", help="События всегда сохраняются локально")
     args = parser.parse_args(argv)
     if bool(args.plan) == bool(args.plan_option):
         parser.error("Укажите один входной файл: позиционно или через --plan")
+    if args.lesson_id and not re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", args.lesson_id):
+        parser.error("--lesson-id должен быть URI")
     try:
         command = [] if args.markdown_only else marp_command(args.marp)
-        result, count = generate(args.plan or args.plan_option, args.output, command, pdf=args.pdf, markdown_only=args.markdown_only)
+        result, count = generate(args.plan or args.plan_option, args.output, command, actor=args.actor, lesson_id=args.lesson_id, pdf=args.pdf, markdown_only=args.markdown_only)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return 1

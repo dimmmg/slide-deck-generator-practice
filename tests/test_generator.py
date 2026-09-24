@@ -121,3 +121,22 @@ class GeneratorTests(unittest.TestCase):
             __import__('os').link(plan,Path(d)/'lesson.marp.md')
             with self.assertRaises(ValueError):app.generate(plan,Path(d),[],markdown_only=True)
             self.assertEqual(plan.read_text(encoding='utf-8'),source)
+
+    def test_metadata_and_regeneration(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan=Path(d)/'lesson.md';out=Path(d)/'out';plan.write_bytes(b'\xef\xbb\xbf# Topic\nText')
+            with patch('generate_slides.subprocess.run',side_effect=fake_marp):
+                app.generate(plan,out,['marp'],actor='student',pdf=True)
+                app.generate(plan,out,['marp'],actor='student',pdf=True)
+            metadata=json.loads((out/'lesson.metadata.json').read_text(encoding='utf-8'))
+            self.assertEqual(metadata['plan_sha256'],hashlib.sha256(plan.read_bytes()).hexdigest())
+            self.assertEqual(metadata['sha256']['pptx'],hashlib.sha256((out/'lesson.pptx').read_bytes()).hexdigest())
+            events=[json.loads(line) for line in (out/'events.xapi.jsonl').read_text(encoding='utf-8').splitlines()]
+            self.assertEqual(len(events),2)
+            self.assertTrue(events[0]['verb']['id'].endswith(':generated'))
+            self.assertTrue(events[1]['verb']['id'].endswith(':regenerated'))
+            self.assertNotEqual(events[0]['id'],events[1]['id'])
+
+    def test_lesson_id_must_be_uri(self):
+        with contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):
+            app.main(['x.md','--lesson-id','not a uri'])
