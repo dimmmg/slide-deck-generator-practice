@@ -145,6 +145,17 @@ def make_metadata(lesson_id, slides, paths, action):
             "sha256": hashes, "artifacts": {key: path.as_uri() for key, path in paths.items()}}
 
 
+def append_event(path, metadata, actor):
+    action = metadata["action"]
+    event = {"id": str(uuid.uuid4()), "version": "1.0.3", "timestamp": metadata["timestamp"],
+             "actor": {"objectType": "Agent", "account": {"homePage": BASE + "local", "name": actor}},
+             "verb": {"id": BASE + action, "display": {"ru": "пересоздал презентацию" if action == "regenerated" else "сгенерировал презентацию"}},
+             "object": {"objectType": "Activity", "id": metadata["lesson_id"], "definition": {"name": {"ru": metadata["title"]}}},
+             "context": {"extensions": {BASE + "artifacts": metadata["artifacts"], BASE + "plan-sha256": metadata["plan_sha256"]}}}
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Markdown → Marp → редактируемый PPTX")
     parser.add_argument("plan", nargs="?", type=Path)
