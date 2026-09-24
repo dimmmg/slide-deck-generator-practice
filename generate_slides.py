@@ -133,6 +133,18 @@ def export_files(draft, output, command, pdf=False):
     return artifacts
 
 
+def write_json(path, obj):
+    path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def make_metadata(lesson_id, slides, paths, action):
+    timestamp = datetime.now(timezone.utc).isoformat()
+    hashes = {key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in paths.items()}
+    return {"lesson_id": lesson_id, "title": slides[0][0], "slide_count": len(slides),
+            "timestamp": timestamp, "action": action, "plan_sha256": hashes["plan"],
+            "sha256": hashes, "artifacts": {key: path.as_uri() for key, path in paths.items()}}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Markdown → Marp → редактируемый PPTX")
     parser.add_argument("plan", nargs="?", type=Path)
