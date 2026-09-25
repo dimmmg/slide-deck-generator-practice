@@ -140,3 +140,45 @@ class GeneratorTests(unittest.TestCase):
     def test_lesson_id_must_be_uri(self):
         with contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):
             app.main(['x.md','--lesson-id','not a uri'])
+
+    def test_pdf_failure_keeps_old_outputs(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);plan=root/'lesson.md';out=root/'out';out.mkdir()
+            plan.write_text('# Урок\nТекст',encoding='utf-8')
+            (out/'lesson.pptx').write_bytes(b'old pptx');(out/'lesson.pdf').write_bytes(b'old pdf')
+            def fail_pdf(command,check):
+                if '--pdf' in command:raise subprocess.CalledProcessError(1,'marp')
+                fake_marp(command,check)
+            with patch('generate_slides.subprocess.run',side_effect=fail_pdf),self.assertRaises(subprocess.CalledProcessError):
+                app.generate(plan,out,['marp'],pdf=True)
+            self.assertEqual((out/'lesson.pptx').read_bytes(),b'old pptx')
+            self.assertEqual((out/'lesson.pdf').read_bytes(),b'old pdf')
+            self.assertFalse((out/'events.xapi.jsonl').exists())
+
+    def test_replacement_failure_rolls_back(self):
+        original=Path.replace
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);plan=root/'lesson.md';out=root/'out';out.mkdir()
+            plan.write_text('# Урок\nТекст',encoding='utf-8')
+            (out/'lesson.pptx').write_bytes(b'old pptx');(out/'lesson.pdf').write_bytes(b'old pdf')
+            def fail_once(source,destination):
+                if source.name=='lesson.pdf' and source.parent!=out:raise OSError('controlled failure')
+                return original(source,destination)
+            with patch('generate_slides.subprocess.run',side_effect=fake_marp),patch.object(Path,'replace',fail_once),self.assertRaises(OSError):
+                app.generate(plan,out,['marp'],pdf=True)
+            self.assertEqual((out/'lesson.pptx').read_bytes(),b'old pptx')
+            self.assertEqual((out/'lesson.pdf').read_bytes(),b'old pdf')
+            self.assertFalse((out/'events.xapi.jsonl').exists())
+
+    def test_new_partial_output_removed_on_failure(self):
+        original=Path.replace
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);plan=root/'lesson.md';out=root/'out'
+            plan.write_text('# Урок\nТекст',encoding='utf-8')
+            def fail_pdf(source,destination):
+                if source.name=='lesson.pdf':raise OSError('controlled failure')
+                return original(source,destination)
+            with patch('generate_slides.subprocess.run',side_effect=fake_marp),patch.object(Path,'replace',fail_pdf),self.assertRaises(OSError):
+                app.generate(plan,out,['marp'],pdf=True)
+            self.assertFalse((out/'lesson.pptx').exists())
+            self.assertFalse((out/'events.xapi.jsonl').exists())
