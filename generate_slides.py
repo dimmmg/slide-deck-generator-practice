@@ -97,7 +97,11 @@ def generate(plan, output, command, actor="student", lesson_id=None, pdf=False, 
         return draft, len(slides)
     pptx = output / (stem + ".pptx")
     regenerated = pptx.exists()
-    exported = export_files(draft, output, command, pdf)
+    with tempfile.TemporaryDirectory(prefix="slides-", dir=output) as temp:
+        staged = export_files(draft, Path(temp), command, pdf)
+        for p in staged.values():
+            p.replace(output / p.name)
+    exported = {key: output / p.name for key, p in staged.items()}
     artifacts = {"plan": plan.as_uri(), "markdown": draft.as_uri()}
     artifacts.update({key: value.as_uri() for key, value in exported.items()})
     paths = {"plan": plan, "markdown": draft, **exported}
