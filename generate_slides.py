@@ -99,8 +99,7 @@ def generate(plan, output, command, actor="student", lesson_id=None, pdf=False, 
     regenerated = pptx.exists()
     with tempfile.TemporaryDirectory(prefix="slides-", dir=output) as temp:
         staged = export_files(draft, Path(temp), command, pdf)
-        for p in staged.values():
-            p.replace(output / p.name)
+        publish_files(staged, output, Path(temp))
     exported = {key: output / p.name for key, p in staged.items()}
     artifacts = {"plan": plan.as_uri(), "markdown": draft.as_uri()}
     artifacts.update({key: value.as_uri() for key, value in exported.items()})
@@ -165,6 +164,26 @@ def append_event(path, metadata, actor):
              "context": {"extensions": {BASE + "artifacts": metadata["artifacts"], BASE + "plan-sha256": metadata["plan_sha256"]}}}
     with path.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def publish_files(staged, output, temporary):
+    backups, published = {}, []
+    try:
+        for source in staged.values():
+            destination = output / source.name
+            if destination.exists():
+                backup = temporary / (source.name + ".backup")
+                shutil.copy2(destination, backup)
+                backups[destination] = backup
+            source.replace(destination)
+            published.append(destination)
+    except OSError:
+        for destination in reversed(published):
+            if destination in backups:
+                backups[destination].replace(destination)
+            else:
+                destination.unlink(missing_ok=True)
+        raise
 
 
 def main(argv=None):
