@@ -68,7 +68,7 @@ class GeneratorTests(unittest.TestCase):
             plan=Path(d)/'мой урок.md';plan.write_text('# Тема\nТекст',encoding='utf-8')
             with patch('generate_slides.subprocess.run',side_effect=fake_marp) as run:
                 app.generate(plan,Path(d)/'output dir',['node','marp.js'])
-            self.assertIn(str(Path(d)/'output dir'/'мой урок.marp.md'),run.call_args.args[0])
+            self.assertIn(str((Path(d)/'output dir'/'мой урок.marp.md').resolve()),run.call_args.args[0])
 
     def test_pdf_export(self):
         with tempfile.TemporaryDirectory() as d:
@@ -182,3 +182,11 @@ class GeneratorTests(unittest.TestCase):
                 app.generate(plan,out,['marp'],pdf=True)
             self.assertFalse((out/'lesson.pptx').exists())
             self.assertFalse((out/'events.xapi.jsonl').exists())
+
+    def test_extended_example(self):
+        source=(Path(__file__).resolve().parents[1]/'examples/markdown-cases.md').read_text(encoding='utf-8')
+        slides=app.parse_plan(source)
+        self.assertEqual(len(slides),3)
+        rendered=app.marp_markdown(slides)
+        for part in ['Console.WriteLine', 'Вложенный тезис', 'TODO: добавить тезисы']:
+            self.assertIn(part,rendered)
