@@ -7,3 +7,4 @@ inputs: Markdown с заголовками и разделителями
 outputs: Редактируемый PPTX, Markdown, JSON-метаданные, локальные xAPI-события, опциональный PDF
 integrations: Marp CLI
 storage: local
+version: 1.0.0
