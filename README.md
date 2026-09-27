@@ -15,3 +15,14 @@ python generate_slides.py --plan examples/lesson.md --output out
 ```
 
 [Установка в Windows](docs/windows.md).
+
+## Проверка и документация
+
+python -m unittest discover -s tests -v
+
+--pdf добавляет PDF; --markdown-only создаёт только черновик.
+--actor задаёт псевдоним, --lesson-id — URI занятия; журнал всегда локальный.
+
+[Архитектура](docs/architecture.md), [сценарии](docs/use-cases.md),
+[приёмка](docs/acceptance.md), [ограничения](docs/reliability.md),
+[подготовка релиза](docs/release.md).
